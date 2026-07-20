@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Which pages need a refresh first? A decision-support model for content prioritization</title>
+<style>
+  :root {
+    --ink: #1a1f2b;
+    --muted: #5b6472;
+    --accent: #4C72B0;
+    --good: #55A868;
+    --bad: #C44E52;
+    --bg: #fbfbfc;
+    --card: #ffffff;
+    --border: #e4e7ec;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.65;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 48px 20px 96px; }
+  header.hero { max-width: 780px; margin: 0 auto; padding: 64px 20px 24px; }
+  h1 { font-size: 2rem; line-height: 1.25; margin: 0 0 12px; }
+  .subtitle { color: var(--muted); font-size: 1.05rem; margin-bottom: 28px; }
+  .byline { font-size: 0.9rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: 16px; }
+  section { margin-top: 56px; }
+  h2 { font-size: 1.4rem; border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-bottom: 20px; }
+  h3 { font-size: 1.1rem; margin-top: 28px; }
+  p { margin: 0 0 16px; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; }
+  li { margin-bottom: 6px; }
+  code { background: #eef0f4; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px 24px; margin: 20px 0;
+  }
+  .abstract { background: #f0f3f9; border-left: 4px solid var(--accent); padding: 18px 22px; border-radius: 6px; }
+  table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.95rem; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; }
+  tr.highlight td { font-weight: 700; color: var(--accent); }
+  figure { margin: 24px 0; text-align: center; }
+  figure img { max-width: 100%; border-radius: 8px; border: 1px solid var(--border); }
+  figcaption { color: var(--muted); font-size: 0.9rem; margin-top: 8px; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
+  .badge.warn { background: #fdf1e7; color: #9a5b12; }
+  .badge.ok { background: #eaf6ec; color: #1f7a34; }
+  .limits li::marker { color: var(--bad); }
+  footer { max-width: 780px; margin: 0 auto; padding: 32px 20px 64px; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--border); }
+  a { color: var(--accent); }
+  .toc { font-size: 0.9rem; }
+  .toc a { display: block; padding: 3px 0; }
+  @media (max-width: 600px) { h1 { font-size: 1.5rem; } .wrap, header.hero, footer { padding-left: 16px; padding-right: 16px; } }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <span class="badge ok">Research paper · FlyRank ML Internship Capstone</span>
+  <h1>Which pages need a refresh first? A decision-support model for content prioritization</h1>
+  <p class="subtitle">A ranking model that triples baseline precision at identifying declining content, validated under a client-grouped holdout split, with an honest audit of what it can and cannot claim.</p>
+  <p class="byline">Selva Kumaran G · FlyRank ML Internship, 2026</p>
+</header>
+
+<div class="wrap">
+
+<section id="abstract">
+  <h2>Abstract</h2>
+  <div class="abstract">
+    <p>
+    Content teams must decide which of thousands of pages to refresh first, but simple rules based on a single metric perform poorly.
+    Using a 30,000-page anonymized content-performance dataset, I built a Logistic Regression model to rank pages by decline risk, using
+    features like ranking position, staleness, and engagement — explicitly excluding any field the label itself was derived from.
+    Under a client-grouped holdout split (no client's pages seen in both train and test), the model reached a Precision@50 of 0.70,
+    more than double a transparent, non-leaky baseline rule's 0.32. The result is decision-support, not causal proof: it ranks pages
+    worth a human's attention, not a guarantee that refreshing any single page will reverse its decline.
+    </p>
+  </div>
+</section>
+
+<section id="intro">
+  <h2>Introduction / Problem statement</h2>
+  <p>
+    Every content team eventually hits the same wall: traffic has plateaued or declined across a large site, and there isn't enough
+    writer or editor time to refresh everything. The real decision is triage — which pages should be reviewed first, this cycle,
+    given limited hours? A wrong call has a real cost either way: refresh a page that wasn't actually failing, and that time is wasted
+    while a genuinely declining page goes untouched; miss a real decline, and the traffic loss compounds unnoticed until the next
+    review.
+  </p>
+  <p>
+    This paper asks a narrow, answerable question: <strong>can a simple, transparent model rank pages by decline risk meaningfully
+    better than a hand-written rule, on the same data and the same honest validation split?</strong> The output is meant to sit in
+    front of a human reviewer as a prioritized shortlist — not to run unattended.
+  </p>
+</section>
+
+<section id="data">
+  <h2>Data</h2>
+  <p>
+    This analysis uses the <strong>FlyRank ML Internship starter release</strong>: <code>content_refresh_anonymized.csv</code>,
+    30,000 pseudonymized pages across 32 anonymized clients, with 44 columns covering search performance (impressions, clicks,
+    CTR, average position), content attributes (word count, content type, age), and a 90-day trend snapshot.
+  </p>
+  <ul>
+    <li><strong>Unit of analysis:</strong> one row = one page, at one point-in-time snapshot, for one client.</li>
+    <li><strong>Time window:</strong> a single 90-day performance snapshot — not a time-series of repeated visits to the same page.</li>
+    <li><strong>Excluded from features:</strong> <code>trend_direction</code> and <code>trend_pct</code> — the label
+      (<code>is_declining_label</code>) is derived directly from <code>trend_direction</code>, so using either as a model input
+      would leak the answer into the question.</li>
+    <li><strong>Public-safe:</strong> the dataset ships pre-anonymized (pseudonymized page and client IDs); no client names, domains,
+      or raw queries appear anywhere in this analysis or repository.</li>
+  </ul>
+</section>
+
+<section id="methodology">
+  <h2>Methodology</h2>
+
+  <h3>Label</h3>
+  <p>
+    <code>is_declining_label = (trend_direction == "down")</code>. This is a <strong>proxy</strong>, not ground truth on
+    intent-to-refresh — a page can decline for reasons a refresh won't fix (seasonality, a lost SERP feature, a stronger competitor),
+    and a stable page might still benefit from a proactive update. Base rate: <strong>54.2%</strong> of pages in this sample are
+    labeled declining.
+  </p>
+
+  <h3>Baseline (non-leaky, by design)</h3>
+  <p>
+    An early draft of this baseline directly gated on <code>trend_direction</code> and scored a suspicious Precision@50 of 1.0 —
+    a clear leakage signal, since the rule could not lose against a metric built from the same field it used as an input. The
+    corrected baseline instead blends two independent, pre-decline signals: a visibility percentile
+    (log-scaled 90-day impressions) and a freshness-risk percentile (days since last update), weighted equally. This is the
+    baseline the model is compared against below.
+  </p>
+
+  <h3>Features</h3>
+  <p>
+    13 numeric features (search volume, competition, CPC, word/char count, days with impressions, days since last update, CTR,
+    average position, engagement rate, scroll rate, AI-traffic share, content age) and 3 categorical features (competition level,
+    content type, main search intent) — all observed at the same snapshot as the label, none derived from it.
+  </p>
+
+  <h3>Validation design</h3>
+  <p>
+    Split by <strong>client, not row</strong> (<code>GroupShuffleSplit</code>, 80/20, seed 42) — no client's pages appear in both
+    train and test. This matters: a naive random row split let 31 of 32 clients leak across both sides, which inflated Precision@50
+    to an overly optimistic 0.78. The honest, client-grouped number is 0.70 — an ~8-point gap that was pure leakage, not real
+    generalization.
+  </p>
+  <figure>
+    <img src="img/leakage_before_after.png" alt="Bar chart comparing Precision@50 under a random split versus a client-grouped split">
+    <figcaption>Fig. 1 — A naive random split (31/32 clients leaking) overstates performance by roughly 8 points of Precision@50 versus the honest, client-grouped split.</figcaption>
+  </figure>
+
+  <h3>Leakage audit</h3>
+  <p>
+    Final feature set re-checked against the label source: <code>trend_direction</code> and <code>trend_pct</code> confirmed
+    absent. <code>client_id</code> used only for the split, never as a model input. No feature showed a correlation with the
+    label above ~0.16 in magnitude — consistent with real, moderate signal rather than a disguised copy of the label.
+  </p>
+</section>
+
+<section id="results">
+  <h2>Results</h2>
+  <table>
+    <thead><tr><th>Method</th><th>Precision@50</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Base rate</td><td>0.54</td><td>Share of all pages labeled declining</td></tr>
+      <tr><td>Baseline rule (visibility + freshness)</td><td>0.32</td><td>Transparent, non-leaky, hand-written</td></tr>
+      <tr><td>Random Forest</td><td>0.58</td><td>Did not beat Logistic Regression here</td></tr>
+      <tr class="highlight"><td>Logistic Regression</td><td>0.70</td><td>Best result, client-grouped split</td></tr>
+    </tbody>
+  </table>
+  <figure>
+    <img src="img/model_vs_baseline.png" alt="Bar chart comparing Precision@50 across baseline rule, Random Forest, Logistic Regression, and base rate">
+    <figcaption>Fig. 2 — Logistic Regression more than doubles the non-leaky baseline's Precision@50 on the same client-holdout split.</figcaption>
+  </figure>
+  <p>
+    Notably, the simpler Logistic Regression outperformed Random Forest on this split — a reminder that added model complexity
+    isn't automatically added performance, and readable models deserve a fair first look.
+  </p>
+
+  <h3>An honest negative result: staleness alone is a weak signal</h3>
+  <p>
+    A natural hypothesis is that staler content declines more. The bucketed data doesn't cleanly support this: decline rate was
+    51.2% for pages updated in the last 90 days, rose to 61.1% for 91–180 days, then fell to 46.7% for 181–365 days (n=169) and
+    60.0% for 365+ days (n=5, too small to trust). Staleness on its own is <strong>mixed, not confirmed</strong> — it only earns
+    a place in the model alongside other signals, not as a standalone rule.
+  </p>
+  <figure>
+    <img src="img/decline_rate_by_staleness.png" alt="Bar chart of decline rate across four content-staleness buckets, with sample sizes labeled">
+    <figcaption>Fig. 3 — Decline rate by staleness bucket, with n per bucket. The relationship is not monotonic in this sample; the smallest buckets (n=169, n=5) are too thin to generalize from.</figcaption>
+  </figure>
+</section>
+
+<section id="limitations">
+  <h2>Limitations &amp; honest framing</h2>
+  <ul class="limits">
+    <li>This is a <strong>single 90-day snapshot</strong> of one anonymized portfolio (32 clients) — not validated across other
+      time periods, industries, or content types.</li>
+    <li>The label is <strong>observed and directional</strong>, not causal: the model ranks pages that <em>look</em> similar to
+      past declining pages. It does not identify why a page is declining, and it does not predict or reverse-engineer any
+      search engine's ranking algorithm.</li>
+    <li>Precision@50 ≈ 0.70 means roughly 3 in 10 flagged pages are still false positives — this is decision-support for
+      prioritizing human review, not an automated action trigger.</li>
+    <li>The staleness signal, on its own, is mixed in this sample (see above) — a caution against over-trusting any single
+      "obvious" feature without checking it.</li>
+    <li>All numbers here are specific to one seed, one split, and one dataset; they should be read as "observed in this data,"
+      not as general claims about content decay.</li>
+  </ul>
+</section>
+
+<section id="recommendations">
+  <h2>Ranked recommendations — the action playbook</h2>
+  <p>Output pages are grouped into five archetypes, each mapped to a distinct action:</p>
+  <table>
+    <thead><tr><th>Archetype</th><th>Signature</th><th>Recommended action</th></tr></thead>
+    <tbody>
+      <tr><td>Stale &amp; declining</td><td>Declining + 180+ days untouched</td><td><strong>Refresh priority</strong> — clearest combined signal</td></tr>
+      <tr><td>Declining, fresh</td><td>Declining despite recent updates</td><td><strong>Monitor</strong> — staleness isn't the cause; investigate externally</td></tr>
+      <tr><td>Aging but visible</td><td>Stable, old, still meaningful impressions</td><td><strong>Refresh review</strong> — proactive, before it turns into decline</td></tr>
+      <tr><td>Ranked, under-capturing</td><td>Top-10 position, low CTR</td><td><strong>Metadata/title review</strong>, not a full rewrite</td></tr>
+      <tr><td>Stable / healthy</td><td>No risk signals</td><td><strong>No action</strong></td></tr>
+    </tbody>
+  </table>
+  <h3>Human review is mandatory</h3>
+  <p>
+    Before acting on any flagged page, a reviewer should confirm: is the decline seasonal or industry-wide? Did the page recently
+    lose a SERP feature unrelated to content quality? Is the page still strategically relevant? Does the reason code actually match
+    what a human sees on the page?
+  </p>
+  <h3>What should never be automated</h3>
+  <ul>
+    <li>No auto-publishing or auto-editing based on the score alone.</li>
+    <li>No auto-deprioritizing or hiding pages from search — "no action" means "not flagged this cycle," not "safe to remove."</li>
+    <li>No client-facing guarantee of traffic recovery from any refresh.</li>
+    <li>No skipping human review for the thinnest-evidence rows — those need the <em>most</em> scrutiny, not the least.</li>
+  </ul>
+  <h3>Monitoring &amp; retrain triggers</h3>
+  <p>
+    Re-validate if Precision@50 on fresh data drops meaningfully below ~0.70, if feature distributions shift noticeably from this
+    training snapshot, or if the volume of flagged pages swings sharply between runs. At minimum, re-check quarterly.
+  </p>
+</section>
+
+<section id="reproducibility">
+  <h2>Reproducibility</h2>
+  <p>Every step above is reproducible from the notebooks in this project's repository:</p>
+  <ul>
+    <li><a href="https://github.com/SelvaKumaran-G/flyrank-ml-internship3" target="_blank">Full repository</a></li>
+    <li><a href="https://github.com/SelvaKumaran-G/flyrank-ml-internship3/blob/main/work/notebooks/w04_baseline_score.ipynb" target="_blank">Baseline construction</a></li>
+    <li><a href="https://github.com/SelvaKumaran-G/flyrank-ml-internship3/blob/main/work/notebooks/w05_model.ipynb" target="_blank">Model training &amp; comparison</a></li>
+    <li><a href="https://github.com/SelvaKumaran-G/flyrank-ml-internship3/blob/main/work/notebooks/w06_validation_audit.ipynb" target="_blank">Leakage &amp; validation audit</a></li>
+    <li><a href="https://github.com/SelvaKumaran-G/flyrank-ml-internship3/blob/main/work/notebooks/w07_action_playbook.ipynb" target="_blank">Action playbook</a></li>
+    <li><a href="https://github.com/SelvaKumaran-G/flyrank-ml-internship3/blob/main/work/notebooks/capstone.ipynb" target="_blank">Capstone notebook (mirrors this paper)</a></li>
+  </ul>
+  <p>All results use <code>random_state=42</code> throughout; rerunning the notebooks top-to-bottom reproduces every number on this page.</p>
+</section>
+
+</div>
+
+<footer>
+  <p><strong>Acknowledgments &amp; data credit</strong></p>
+  <p>Built on the FlyRank ML Internship dataset — <a href="https://flyrank.ai" target="_blank">flyrank.ai</a>.</p>
+</footer>
+
+</body>
+</html>
